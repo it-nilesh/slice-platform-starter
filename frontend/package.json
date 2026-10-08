@@ -14,7 +14,7 @@
     "validate:manifest": "node scripts/validate-manifest.ts ../gateway/config/mfe-manifest.json ../gateway/conf.d/allowlist.conf"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^10.0.5"
   },
   "engines": {
     "node": ">=22"
