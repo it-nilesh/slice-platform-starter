@@ -3,7 +3,7 @@
 #   docker build --build-arg APP=mfe-catalog --build-arg PUBLIC_PATH=/mfe/catalog --build-arg NGINX_CONF=remote.conf .
 
 ARG NODE_IMAGE=node:24-alpine
-ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.29-alpine
+ARG NGINX_IMAGE=nginxinc/nginx-unprivileged:1.30-alpine-slim
 
 FROM ${NODE_IMAGE} AS build
 ARG APP
