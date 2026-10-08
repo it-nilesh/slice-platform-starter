@@ -1,8 +1,2 @@
-# Ownership per vertical slice. Add a block per team, for example:
-#
-# /backend/src/Services/Orders/         @your-org/orders-team
-# /backend/tests/Orders.Api.Tests/      @your-org/orders-team
-# /frontend/apps/mfe-orders/            @your-org/orders-team
-# /.github/workflows/slice-orders.yml   @your-org/orders-team
-#
-# Platform paths (gateway, shell, frontend/packages, .github) belong to the platform team.
+# Ownership per vertical slice. `./slice create <name> --owner @org/team` appends a block here,
+# and `./slice remove` deletes it. Platform paths (gateway, shell, tools, .github) belong to the platform team.

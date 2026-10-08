@@ -1,0 +1,3 @@
+#!/usr/bin/env sh
+# Platform CLI for vertical slices. See `./slice --help` or tools/slice/README.md.
+exec node "$(dirname "$0")/tools/slice/slice.mjs" "$@"

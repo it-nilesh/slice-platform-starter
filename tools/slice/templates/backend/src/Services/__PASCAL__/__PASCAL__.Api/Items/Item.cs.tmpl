@@ -1,0 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+
+namespace __PASCAL__.Api.Items;
+
+public sealed record Item(Guid Id, string Name, string? Description, DateTimeOffset CreatedAt);
+
+public sealed record CreateItemRequest(
+    [property: Required, StringLength(100, MinimumLength = 1)] string Name,
+    [property: StringLength(500)] string? Description);

@@ -1,0 +1,26 @@
+using __PASCAL__.Api.Items;
+using MicroFrontendPoC.ServiceDefaults;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults("__NAME__-api");
+builder.Services.AddOpenApi();
+builder.Services.AddValidation();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<IItemRepository, InMemoryItemRepository>();
+
+var app = builder.Build();
+
+app.UseServiceDefaults();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi("/api/__NAME__/openapi/{documentName}.json");
+}
+
+app.MapItemEndpoints();
+
+await app.RunAsync();
+
+// Exposed for WebApplicationFactory in integration tests.
+public partial class Program;

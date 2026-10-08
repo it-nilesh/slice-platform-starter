@@ -1,0 +1,88 @@
+/* CSS Modules: class names are hashed per build, so styles never leak between MFEs. */
+.root {
+  display: grid;
+  gap: 1rem;
+  max-width: 640px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header h2 {
+  margin: 0;
+}
+
+.badge {
+  font: 12px/1.6 ui-monospace, monospace;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.panel {
+  display: grid;
+  gap: 0.35rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.panel label {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.panel input {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.actions button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  background: #0369a1;
+  color: #fff;
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.6;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.list li {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.muted {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.error {
+  color: #b91c1c;
+}
