@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM nginxinc/nginx-unprivileged:1.30-alpine-slim
+FROM nginxinc/nginx-unprivileged:1.31-alpine-slim
 
 # Routing (conf.d/default.conf), the allowlist and the MFE manifest are baked in
 # for reproducible deploys. allowlist.conf and config/ are also designed to be
