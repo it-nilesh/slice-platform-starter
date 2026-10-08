@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
 # Guided demo: independent microfrontends + microservices behind one gateway.
 #
-#   ./demo.sh            interactive (press Enter between steps)
-#   DEMO_AUTO=1 ./demo.sh   run straight through (e.g. for recording)
+#   ./demo.sh                     interactive (press Enter between steps)
+#   DEMO_AUTO=1 ./demo.sh         run straight through (e.g. for recording)
 #   GATEWAY_PORT=8088 ./demo.sh   if port 8080 is taken
-#
-# The demo creates a temporary "inventory" slice and removes it again at the end.
 set -euo pipefail
 cd "$(dirname "$0")"
 
 export GATEWAY_PORT="${GATEWAY_PORT:-8080}"
 URL="http://localhost:${GATEWAY_PORT}"
-SLICE="${DEMO_SLICE:-inventory}"
+MANIFEST=gateway/config/mfe-manifest.json
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 dim() { printf '\033[2m%s\033[0m\n' "$*"; }
@@ -30,9 +28,20 @@ wait_for() {
     sleep 2
   done
 }
+# Sets "enabled" on one manifest entry, editing the file in place (it is bind-mounted into the gateway).
+set_enabled() {
+  node -e '
+    const fs = require("fs");
+    const [file, name, enabled] = process.argv.slice(1);
+    const m = JSON.parse(fs.readFileSync(file, "utf8"));
+    const r = m.remotes.find((x) => x.name === name);
+    if (enabled === "true") delete r.enabled; else r.enabled = false;
+    fs.writeFileSync(file, JSON.stringify(m, null, 2) + "\n");
+  ' "$MANIFEST" "$1" "$2"
+}
 shell_identity() { docker inspect -f '{{slice .Image 7 19}} started {{.State.StartedAt}}' "$(docker compose ps -q shell)"; }
 
-for cmd in docker node npm curl; do
+for cmd in docker node curl; do
   command -v "$cmd" >/dev/null || { echo "Missing prerequisite: $cmd" >&2; exit 1; }
 done
 
@@ -46,7 +55,6 @@ pause
 step "2. The shell knows nothing at build time: it reads this manifest at runtime"
 run curl -s "$URL/config/mfe-manifest.json"
 echo
-run ./slice list
 pause
 
 step "3. Every request is checked by the services, not trusted from the browser"
@@ -56,39 +64,24 @@ run curl -s -X POST "$URL/api/orders" -H 'Content-Type: application/json' \
 echo
 pause
 
-step "4. A new team ships a new slice: one command scaffolds API + MFE + CI pipeline"
+step "4. Kill switch: hide a slice by editing config only (no build, no deploy)"
 SHELL_BEFORE=$(shell_identity)
-run ./slice create "$SLICE" --label "Inventory"
+dim "Setting \"enabled\": false for orders in $MANIFEST"
+set_enabled orders false
+bold "Reload $URL: Orders is gone from the navigation."
 pause
-
-step "5. Deploy ONLY the new slice (nothing else is rebuilt or restarted)"
-run docker compose up -d --build --no-deps "${SLICE}-api" "mfe-${SLICE}"
-pause
-
-step "6. Go live: register it at the gateway (manifest + allowlist, zero-downtime reload)"
-run ./slice register "$SLICE" --reload
+set_enabled orders true
+bold "Re-enabled. Reload again: Orders is back."
 SHELL_AFTER=$(shell_identity)
-bold "Reload $URL: \"Inventory\" is in the navigation."
-echo "shell before: $SHELL_BEFORE"
-echo "shell after:  $SHELL_AFTER"
 if [ "$SHELL_BEFORE" = "$SHELL_AFTER" ]; then bold "✓ The shell was not rebuilt or restarted."; fi
 pause
 
-step "7. Kill switch: hide a broken slice without deploying anything"
-run ./slice disable orders
-bold "Reload $URL: Orders is gone from the navigation."
-pause
-run ./slice enable orders
-
-step "8. Fault isolation: one slice goes down, the rest keeps working"
+step "5. Fault isolation: one slice goes down, the rest keeps working"
 run docker compose stop mfe-catalog
 bold "Open $URL/catalog: Catalog shows 'unavailable'; Orders and Profile still work."
 pause "Press Enter to bring Catalog back…"
 run docker compose start mfe-catalog
 bold "Click 'Try again' in the browser: Catalog recovers without a page reload."
-pause
 
-step "9. Clean up the demo slice"
-run docker compose rm -sf "${SLICE}-api" "mfe-${SLICE}"
-run ./slice remove "$SLICE" --yes --reload
-bold "Done. The platform keeps running at $URL (stop it with: docker compose down)."
+step "Done"
+bold "The platform keeps running at $URL (stop it with: docker compose down)."

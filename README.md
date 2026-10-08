@@ -5,7 +5,7 @@
 A small, production-shaped proof of concept for **microfrontends + microservices behind a single NGINX gateway**, packaged as a **framework**:
 
 - **Manifest-driven dynamic remotes**: adding a microfrontend never requires rebuilding or redeploying the shell.
-- **Vertical slices** (one API + one MFE + one pipeline per team), generated and managed by the `./slice` CLI.
+- **Vertical slices**: one API + one MFE + one pipeline per team.
 - **Independent CI/CD per slice**: test, scan, sign and push only what changed; release each slice with its own tags.
 
 - **Frontend:** React 19 + Vite 8 + Module Federation (`@module-federation/vite` + `@module-federation/runtime`), TypeScript
@@ -68,16 +68,8 @@ Try it: add products in **Catalog** → the cart badge in the shell updates → 
 1. Start the platform.
 2. Show the runtime manifest the shell reads.
 3. Try to buy a $449.99 monitor for $0.01: the price is ignored and taken from catalog-api.
-4. **Create a new slice with one command:** API + tests + MFE + CI pipeline.
-5. Deploy **only** that slice.
-6. Register it, then show the shell container was neither rebuilt nor restarted.
-7. Kill switch: hide a slice without deploying.
-8. Stop a slice's container; the rest of the app keeps working.
-9. Clean up.
-
-| `./slice create` + `./slice register` | The new slice, live without touching the shell |
-|---|---|
-| ![slice CLI](docs/images/slice-cli.png) | ![New slice](docs/images/new-slice.png) |
+4. **Kill switch:** hide a slice by editing the manifest only, then show the shell container was neither rebuilt nor restarted.
+5. Stop a slice's container; the rest of the app keeps working.
 
 | One slice down, the rest keeps working |
 |---|
@@ -115,17 +107,26 @@ Module Federation runtime, and builds its routes and navigation from it.
 | Disable a broken MFE (kill switch) | No | No | `"enabled": false` in the manifest. Takes effect on the next page load. |
 | Change shell code | Yes | No | |
 
-### Adding a new slice: one command, zero shell changes
+### Adding a new slice (zero shell changes)
 
-```bash
-./slice create inventory --owner @acme/inventory-team   # API + tests + MFE + pipeline + compose + dev ports
-docker compose up -d --build --no-deps inventory-api mfe-inventory
-./slice register inventory --reload                     # manifest + allowlist, validated, live
-```
+Example: an `inventory` slice. Copy an existing slice and rename it:
 
-See the **[slice framework guide](tools/slice/README.md)** for every command, the pipeline
-design and the image policy. `npm run validate:manifest` (also run in CI) checks the manifest
-with the exact rules the shell uses at runtime, **and** that every enabled remote is allowlisted at the gateway.
+1. **API:** copy `backend/src/Services/Catalog` → `Inventory` (and its test project), rename the
+   namespaces, map routes under `/api/inventory`, then `dotnet sln backend/MicroFrontendPoC.slnx add ...`.
+2. **MFE:** copy `frontend/apps/mfe-catalog` → `mfe-inventory`. In `vite.config.ts` set
+   `name: 'inventory'`, `base: '/mfe/inventory/'` and a free dev port. Expose `./App` with a default
+   export of `ComponentType<RemoteAppProps>` (from `@mfe/contracts`). Run `npm install` in `frontend/`.
+3. **Pipeline:** copy `.github/workflows/slice-catalog.yml` → `slice-inventory.yml` and replace the names.
+4. **Compose:** add `inventory-api` and `mfe-inventory` to `docker-compose.yml`. The gateway finds
+   containers by these names.
+5. **Deploy** just the new slice: `docker compose up -d --build --no-deps inventory-api mfe-inventory`.
+6. **Go live** with config only:
+   - add an entry to `gateway/config/mfe-manifest.json`
+   - add `inventory 1;` to both maps in `gateway/conf.d/allowlist.conf`
+   - reload NGINX: `docker compose exec gateway sh -c 'nginx -t && nginx -s reload'`
+
+`npm run validate:manifest` (also run in CI) checks the manifest with the exact rules the shell uses
+at runtime, **and** that every enabled remote is allowlisted at the gateway.
 
 ### Production safeguards
 
@@ -146,7 +147,7 @@ with the exact rules the shell uses at runtime, **and** that every enabled remot
 
 ## CI/CD (independent per slice)
 
-Every slice has its own GitHub Actions pipeline (`slice-<name>.yml`, generated) built from two
+Every slice has its own GitHub Actions pipeline (`slice-<name>.yml`), built from two
 reusable workflows and one shared image action. A change to `mfe-orders` builds and ships
 **only** `mfe-orders`; a tag like `orders-v1.4.0` releases only the orders slice.
 
@@ -158,7 +159,8 @@ reusable workflows and one shared image action. A change to `mfe-orders` builds 
 
 Every image is scanned (Trivy; build fails on fixable CRITICAL/HIGH), gets an SBOM and signed
 provenance, and is tagged `sha-<short>`, `main` or a semver release (never `latest`). Actions
-are SHA-pinned and kept current by Dependabot. Details: [tools/slice/README.md](tools/slice/README.md#cicd).
+are SHA-pinned and kept current by Dependabot. Inside a slice pipeline, a path filter decides which half
+to build: an MFE-only change never rebuilds the API, and vice versa.
 
 To publish, push this repo to GitHub. The pipelines use the built-in `GITHUB_TOKEN`, so no secrets are needed.
 
@@ -186,12 +188,10 @@ OpenAPI documents (Development only): `/api/<name>/openapi/v1.json`.
 ```
 ├── demo.sh                      guided 5-minute demo (./demo.sh)
 ├── docs/images/                 architecture diagram + screenshots
-├── slice                        platform CLI (./slice --help)
-├── tools/slice/                 CLI + slice templates + framework guide
 ├── docker-compose.yml
 ├── .github/
 │   ├── actions/container-image  shared build → scan → push → attest
-│   ├── workflows/               _build-*.yml (reusable), slice-<name>.yml (generated), shell.yml, gateway.yml
+│   ├── workflows/               _build-*.yml (reusable), slice-<name>.yml (one per slice), shell.yml, gateway.yml
 │   ├── dependabot.yml
 │   └── CODEOWNERS               per-slice ownership
 ├── gateway/
@@ -243,7 +243,6 @@ OpenAPI documents (Development only): `/api/<name>/openapi/v1.json`.
 ## Commands
 
 ```bash
-./slice list                               # slices and their state
 cd backend  && dotnet test                 # backend integration tests
 cd frontend && npm test                    # shell unit tests (manifest validation/loading)
 cd frontend && npm run validate:manifest   # manifest + allowlist consistency
@@ -271,6 +270,6 @@ production-shaped, but some things are intentionally left out to keep it focused
 
 - TLS termination (enable the commented HSTS header in `gateway/snippets/security-headers.conf`).
 - A real database per service + migrations; async integration events (e.g. order placed → RabbitMQ/Kafka) instead of synchronous coupling.
-- CD: promote the images CI pushes (`sha-*` / semver) per environment, e.g. with GitOps (Argo CD/Flux). On Kubernetes: Deployments + Services named by the same convention, the gateway (or an Ingress) in front, and the manifest + allowlist as ConfigMaps managed by `./slice register` in the env repo.
+- CD: promote the images CI pushes (`sha-*` / semver) per environment, e.g. with GitOps (Argo CD/Flux). On Kubernetes: Deployments + Services named by the same convention, the gateway (or an Ingress) in front, and the manifest + allowlist as ConfigMaps in the environment repo.
 - Manifest management: generate it from a registry or deploy pipeline (each slice's pipeline registers itself), and consider per-environment/per-tenant manifests for canary releases.
 - Subresource integrity for `remoteEntry.js` (needs content-hashed entry names published to the manifest at deploy time).
