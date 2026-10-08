@@ -1,0 +1,135 @@
+name: Container image
+description: >
+  Build a container image, scan it with Trivy (fails on fixable CRITICAL/HIGH),
+  and optionally push it to GHCR with an SBOM and signed build provenance.
+  Shared by every pipeline so all images follow one policy.
+
+inputs:
+  component:
+    description: Image name within the repository namespace, e.g. catalog-api, mfe-catalog, shell, gateway
+    required: true
+  context:
+    description: Docker build context
+    required: true
+  file:
+    description: Path to the Dockerfile
+    required: true
+  build-args:
+    description: Newline-separated build args
+    required: false
+    default: ""
+  release-tag-prefix:
+    description: Git tag prefix that marks a release of this component, e.g. catalog-v (catalog-v1.2.0 -> image tag 1.2.0)
+    required: true
+  push:
+    description: Push to the registry ("true"/"false")
+    required: false
+    default: "false"
+  scan-severity:
+    description: Trivy severities that fail the build
+    required: false
+    default: CRITICAL,HIGH
+  github-token:
+    description: Token with packages:write (GITHUB_TOKEN)
+    required: true
+
+outputs:
+  image:
+    description: Fully qualified image name (without tag)
+    value: ${{ steps.name.outputs.image }}
+  digest:
+    description: Pushed image digest (empty when not pushed)
+    value: ${{ steps.push.outputs.digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve image name
+      id: name
+      shell: bash
+      env:
+        COMPONENT: ${{ inputs.component }}
+      run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}/${COMPONENT}" >> "$GITHUB_OUTPUT"
+
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+    - name: Compute tags
+      id: meta
+      uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+      with:
+        images: ${{ steps.name.outputs.image }}
+        # sha-<short> always; "main" from the default branch; "pr-N" for pull requests;
+        # semver (e.g. 1.2.0) when a "<prefix>1.2.0" git tag is pushed. Never "latest".
+        tags: |
+          type=sha,format=short
+          type=ref,event=pr
+          type=raw,value=main,enable={{is_default_branch}}
+          type=match,pattern=${{ inputs.release-tag-prefix }}(\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?)$,group=1
+
+    - name: Build for scanning
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        build-args: ${{ inputs.build-args }}
+        load: true
+        push: false
+        tags: scan/${{ inputs.component }}:${{ github.sha }}
+        cache-from: type=gha,scope=${{ inputs.component }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.component }}
+
+    - name: Scan for vulnerabilities
+      uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        image-ref: scan/${{ inputs.component }}:${{ github.sha }}
+        severity: ${{ inputs.scan-severity }}
+        ignore-unfixed: true
+        exit-code: "1"
+        format: table
+
+    - name: Log in to GHCR
+      if: inputs.push == 'true'
+      uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ inputs.github-token }}
+
+    - name: Push
+      id: push
+      if: inputs.push == 'true'
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.file }}
+        build-args: ${{ inputs.build-args }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha,scope=${{ inputs.component }}
+        provenance: mode=max
+        sbom: true
+
+    - name: Attest build provenance
+      if: inputs.push == 'true'
+      uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      with:
+        subject-name: ${{ steps.name.outputs.image }}
+        subject-digest: ${{ steps.push.outputs.digest }}
+        push-to-registry: true
+
+    - name: Summary
+      shell: bash
+      env:
+        COMPONENT: ${{ inputs.component }}
+        TAGS: ${{ steps.meta.outputs.tags }}
+        DIGEST: ${{ steps.push.outputs.digest }}
+        PUSHED: ${{ inputs.push }}
+      run: |
+        {
+          echo "### \`${COMPONENT}\`"
+          echo "- pushed: ${PUSHED}"
+          [ -n "${DIGEST}" ] && echo "- digest: \`${DIGEST}\`"
+          echo "- tags:"
+          echo "${TAGS}" | sed 's/^/  - /'
+        } >> "$GITHUB_STEP_SUMMARY"

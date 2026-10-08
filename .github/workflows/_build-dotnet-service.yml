@@ -1,0 +1,77 @@
+# Reusable pipeline for a .NET microservice: test -> build -> scan -> push -> attest.
+# Called by the generated slice-<name>.yml workflows. Do not trigger directly.
+name: Build .NET service
+
+on:
+  workflow_call:
+    inputs:
+      component:
+        description: Image name, e.g. catalog-api
+        type: string
+        required: true
+      dockerfile:
+        description: Dockerfile path (build context is ./backend)
+        type: string
+        required: true
+      test-project:
+        description: Test project directory
+        type: string
+        required: true
+      release-tag-prefix:
+        type: string
+        required: true
+      push:
+        type: boolean
+        default: false
+    outputs:
+      image:
+        value: ${{ jobs.image.outputs.image }}
+      digest:
+        value: ${{ jobs.image.outputs.digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: backend/global.json
+      - name: Test
+        env:
+          TEST_PROJECT: ${{ inputs.test-project }}
+        run: dotnet test "$TEST_PROJECT" --configuration Release
+
+  image:
+    name: Image
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/container-image
+        id: image
+        with:
+          component: ${{ inputs.component }}
+          context: backend
+          file: ${{ inputs.dockerfile }}
+          release-tag-prefix: ${{ inputs.release-tag-prefix }}
+          push: ${{ inputs.push }}
+          github-token: ${{ github.token }}

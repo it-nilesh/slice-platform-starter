@@ -1,0 +1,53 @@
+# Platform pipeline: the shell (host). Adding microfrontends never triggers this.
+name: "platform: shell"
+
+on:
+  push:
+    branches: [main]
+    tags: ["shell-v*"]
+    paths:
+      - frontend/apps/shell/**
+      - frontend/packages/**
+      - frontend/package-lock.json
+      - frontend/tsconfig.base.json
+      - frontend/Dockerfile
+      - frontend/nginx/shell.conf
+      - .github/workflows/shell.yml
+      - .github/workflows/_build-mfe.yml
+      - .github/actions/**
+  pull_request:
+    paths:
+      - frontend/apps/shell/**
+      - frontend/packages/**
+      - frontend/package-lock.json
+      - frontend/tsconfig.base.json
+      - frontend/Dockerfile
+      - frontend/nginx/shell.conf
+      - .github/workflows/shell.yml
+      - .github/workflows/_build-mfe.yml
+      - .github/actions/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shell-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  shell:
+    name: shell
+    uses: ./.github/workflows/_build-mfe.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    with:
+      app: shell
+      public-path: /
+      nginx-conf: shell.conf
+      component: shell
+      release-tag-prefix: shell-v
+      push: ${{ github.event_name != 'pull_request' }}

@@ -1,0 +1,99 @@
+# Reusable pipeline for a frontend app (shell or remote): verify -> build -> scan -> push -> attest.
+# Called by shell.yml and the generated slice-<name>.yml workflows. Do not trigger directly.
+name: Build frontend app
+
+on:
+  workflow_call:
+    inputs:
+      app:
+        description: npm workspace name, e.g. mfe-catalog or shell
+        type: string
+        required: true
+      public-path:
+        description: Path the app is served under, e.g. /mfe/catalog (shell uses /)
+        type: string
+        required: true
+      nginx-conf:
+        description: remote.conf for remotes, shell.conf for the shell
+        type: string
+        default: remote.conf
+      component:
+        description: Image name, e.g. mfe-catalog
+        type: string
+        required: true
+      release-tag-prefix:
+        type: string
+        required: true
+      push:
+        type: boolean
+        default: false
+    outputs:
+      image:
+        value: ${{ jobs.image.outputs.image }}
+      digest:
+        value: ${{ jobs.image.outputs.digest }}
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        env:
+          APP: ${{ inputs.app }}
+        run: npm run typecheck -w "$APP"
+      - name: Unit tests
+        env:
+          APP: ${{ inputs.app }}
+        run: npm run test -w "$APP" --if-present
+      - name: Build
+        env:
+          APP: ${{ inputs.app }}
+        run: npm run build -w "$APP"
+
+  image:
+    name: Image
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/container-image
+        id: image
+        with:
+          component: ${{ inputs.component }}
+          context: frontend
+          file: frontend/Dockerfile
+          build-args: |
+            APP=${{ inputs.app }}
+            PUBLIC_PATH=${{ inputs.public-path }}
+            NGINX_CONF=${{ inputs.nginx-conf }}
+          release-tag-prefix: ${{ inputs.release-tag-prefix }}
+          push: ${{ inputs.push }}
+          github-token: ${{ github.token }}

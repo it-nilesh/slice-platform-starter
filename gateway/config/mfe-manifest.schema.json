@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mfe-manifest.schema.json",
+  "title": "Microfrontend manifest",
+  "description": "Runtime registry of microfrontends loaded by the shell. Served by the gateway at /config/mfe-manifest.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "remotes"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "schemaVersion": { "const": 1 },
+    "remotes": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "$ref": "#/$defs/remote" }
+    }
+  },
+  "$defs": {
+    "remote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "entry", "route"],
+      "properties": {
+        "name": {
+          "description": "Module Federation name of the remote. Must equal `name` in the remote's federation config and the gateway allowlist key.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,29}$"
+        },
+        "entry": {
+          "description": "Same-origin path of the remote entry, under /mfe/<name>/.",
+          "type": "string",
+          "pattern": "^/mfe/[a-z][a-z0-9-]{0,29}/([A-Za-z0-9_-]+/)*remoteEntry(\\.[A-Za-z0-9_-]+)?\\.js$"
+        },
+        "exposedModule": {
+          "description": "Module exposed by the remote. Defaults to ./App.",
+          "type": "string",
+          "pattern": "^\\./[A-Za-z0-9_-]+$",
+          "default": "./App"
+        },
+        "route": {
+          "description": "Shell route the remote is mounted under (the remote owns everything below it).",
+          "type": "string",
+          "pattern": "^/[a-z0-9-]+(/[a-z0-9-]+)*$"
+        },
+        "nav": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+            "order": { "type": "integer", "default": 100 }
+          }
+        },
+        "enabled": {
+          "description": "Kill switch: false hides the remote without redeploying anything.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,87 @@
+/* CSS Modules: class names are hashed per build, so styles never leak between MFEs. */
+.root {
+  display: grid;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header h2 {
+  margin: 0;
+}
+
+.badge {
+  font: 12px/1.6 ui-monospace, monospace;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #e0ecff;
+  color: #1d4ed8;
+}
+
+.grid {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 3;
+  object-fit: cover;
+  background: #f3f4f6;
+}
+
+.body {
+  padding: 0.75rem 1rem 1rem;
+}
+
+.body h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.body p {
+  margin: 0 0 0.75rem;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  background: #1d4ed8;
+  color: #fff;
+  cursor: pointer;
+}
+
+.error {
+  color: #b91c1c;
+}
+
+.toast {
+  margin: 0;
+  color: #047857;
+}

@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.log
+
+# Env / IDE
+.env
+.DS_Store
+.idea/

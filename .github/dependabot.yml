@@ -1,0 +1,36 @@
+# Keeps every slice on patched dependencies. React/MF packages are grouped so the
+# shared singletons are always upgraded in lockstep across the shell and all remotes.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    groups:
+      react-singletons:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      module-federation:
+        patterns: ["@module-federation/*"]
+      tooling:
+        patterns: ["vite", "@vitejs/*", "vitest", "typescript", "concurrently", "@types/node"]
+
+  - package-ecosystem: nuget
+    directories: ["/backend/src/**", "/backend/tests/**"]
+    schedule: { interval: weekly }
+    groups:
+      aspnetcore:
+        patterns: ["Microsoft.AspNetCore.*", "Microsoft.Extensions.*"]
+      opentelemetry:
+        patterns: ["OpenTelemetry*"]
+      test:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk", "coverlet.*"]
+
+  - package-ecosystem: docker
+    directories: ["/backend/src/Services/*/*", "/frontend", "/gateway"]
+    schedule: { interval: weekly }

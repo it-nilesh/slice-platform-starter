@@ -1,0 +1,13 @@
+{
+  "$comment": "Local development only (npm run dev). Maps manifest names to the dev servers the shell proxies to, mirroring what the gateway does in Docker/Kubernetes.",
+  "remotes": {
+    "catalog": "http://localhost:3001",
+    "orders": "http://localhost:3002",
+    "profile": "http://localhost:3003"
+  },
+  "apis": {
+    "catalog": "http://localhost:5101",
+    "orders": "http://localhost:5102",
+    "profile": "http://localhost:5103"
+  }
+}

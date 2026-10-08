@@ -1,0 +1,33 @@
+{
+  "$schema": "./mfe-manifest.schema.json",
+  "schemaVersion": 1,
+  "remotes": [
+    {
+      "name": "catalog",
+      "entry": "/mfe/catalog/remoteEntry.js",
+      "route": "/catalog",
+      "nav": {
+        "label": "Catalog",
+        "order": 10
+      }
+    },
+    {
+      "name": "orders",
+      "entry": "/mfe/orders/remoteEntry.js",
+      "route": "/orders",
+      "nav": {
+        "label": "Orders",
+        "order": 20
+      }
+    },
+    {
+      "name": "profile",
+      "entry": "/mfe/profile/remoteEntry.js",
+      "route": "/profile",
+      "nav": {
+        "label": "Profile",
+        "order": 30
+      }
+    }
+  ]
+}

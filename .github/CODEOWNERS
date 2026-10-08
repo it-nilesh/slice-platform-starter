@@ -1,0 +1,2 @@
+# Ownership per vertical slice. `./slice create <name> --owner @org/team` appends a block here,
+# and `./slice remove` deletes it. Platform paths (gateway, shell, tools, .github) belong to the platform team.

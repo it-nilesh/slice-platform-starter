@@ -1,0 +1,91 @@
+/* CSS Modules: class names are hashed per build, so styles never leak between MFEs. */
+.root {
+  display: grid;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header h2 {
+  margin: 0;
+}
+
+.badge {
+  font: 12px/1.6 ui-monospace, monospace;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.panel h3 {
+  margin: 0 0 0.75rem;
+}
+
+.form ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.form li span {
+  color: #6b7280;
+}
+
+.form label {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 320px;
+  margin-bottom: 0.75rem;
+}
+
+.form input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.form button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  background: #7e22ce;
+  color: #fff;
+  cursor: pointer;
+}
+
+.form button:disabled {
+  opacity: 0.6;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.muted {
+  color: #6b7280;
+  margin: 0;
+}
+
+.error {
+  color: #b91c1c;
+}

@@ -1,0 +1,90 @@
+name: microfrontend-poc
+
+x-api-defaults: &api-defaults
+  restart: unless-stopped
+  environment:
+    ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+    OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  networks: [backend]
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+
+x-web-defaults: &web-defaults
+  restart: unless-stopped
+  networks: [frontend]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  # ---------------------------------------------------------------- gateway
+  gateway:
+    build: ./gateway
+    image: mfe-poc/gateway:${TAG:-local}
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    networks: [frontend, backend]
+    # Runtime config: edit, then `docker compose exec gateway sh -c 'nginx -t && nginx -s reload'`.
+    # (In Kubernetes these two directories are ConfigMaps.) The manifest needs no reload at all.
+    volumes:
+      - ./gateway/config:/usr/share/nginx/config:ro
+      - ./gateway/conf.d:/etc/nginx/conf.d:ro
+    # No depends_on on purpose: every slice deploys independently and the gateway
+    # resolves upstreams per request, returning 503 for a slice that is down.
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+
+  # ---------------------------------------------------------- microservices
+  # Not published to the host: reachable only through the gateway.
+  catalog-api:
+    <<: *api-defaults
+    build:
+      context: ./backend
+      dockerfile: src/Services/Catalog/Catalog.Api/Dockerfile
+    image: mfe-poc/catalog-api:${TAG:-local}
+
+  orders-api:
+    <<: *api-defaults
+    build:
+      context: ./backend
+      dockerfile: src/Services/Orders/Orders.Api/Dockerfile
+    image: mfe-poc/orders-api:${TAG:-local}
+
+  profile-api:
+    <<: *api-defaults
+    build:
+      context: ./backend
+      dockerfile: src/Services/Profile/Profile.Api/Dockerfile
+    image: mfe-poc/profile-api:${TAG:-local}
+
+  # --------------------------------------------------------- microfrontends
+  shell:
+    <<: *web-defaults
+    build:
+      context: ./frontend
+      args: { APP: shell, PUBLIC_PATH: /, NGINX_CONF: shell.conf }
+    image: mfe-poc/shell:${TAG:-local}
+
+  mfe-catalog:
+    <<: *web-defaults
+    build:
+      context: ./frontend
+      args: { APP: mfe-catalog, PUBLIC_PATH: /mfe/catalog, NGINX_CONF: remote.conf }
+    image: mfe-poc/mfe-catalog:${TAG:-local}
+
+  mfe-orders:
+    <<: *web-defaults
+    build:
+      context: ./frontend
+      args: { APP: mfe-orders, PUBLIC_PATH: /mfe/orders, NGINX_CONF: remote.conf }
+    image: mfe-poc/mfe-orders:${TAG:-local}
+
+  mfe-profile:
+    <<: *web-defaults
+    build:
+      context: ./frontend
+      args: { APP: mfe-profile, PUBLIC_PATH: /mfe/profile, NGINX_CONF: remote.conf }
+    image: mfe-poc/mfe-profile:${TAG:-local}
+
+networks:
+  frontend:
+  backend:
